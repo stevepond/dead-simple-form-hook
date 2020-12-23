@@ -1,3 +1,4 @@
+import { isEqual } from "lodash";
 import React, { createContext, useReducer } from "react";
 
 type Action<T extends Record<string, unknown>> =
@@ -8,6 +9,7 @@ type Dispatch<T extends Record<string, unknown>> = (action: Action<T>) => void;
 export type State<T extends Record<string, unknown>> = {
   values: T[];
   defaults: T[];
+  dirty: number[]
 };
 
 export type FormProviderProps<T extends Record<string, unknown>> = {
@@ -16,9 +18,18 @@ export type FormProviderProps<T extends Record<string, unknown>> = {
   defaults?: State<T>["defaults"];
 };
 
+const calcDirty =<T extends Record<string, unknown>> (s1: T[], s2: T[]) => {
+  if (s1.length !== s2.length) {
+    return [];
+  }
+  return s1.reduce((agg, s1o, i) => !isEqual(s1o, s2[i]) ? [...agg, i] : agg, [] as number[]);
+}
+
+
 export const FormContext = createContext<State<Record<string, unknown>>>(
-  {defaults: [], values: []}
+  {defaults: [], values: [], dirty: []}
 );
+
 export const FormDispatchContext = createContext<
   Dispatch<Record<string, unknown>> | undefined
 >(undefined);
@@ -29,10 +40,12 @@ const FormReducer = <T extends Record<string, unknown>>(
 ) => {
   switch (action.type) {
     case "updateDefaults": {
-      return { ...state, defaults: action.value };
+      const dirty = calcDirty(state.values, action.value);
+      return { ...state, defaults: action.value, dirty };
     }
     case "updateValues": {
-      return { ...state, values: action.value };
+      const dirty = calcDirty(state.defaults, action.value);
+      return { ...state, values: action.value, dirty };
     }
     default: {
       throw new Error(`Unhandled action type: ${action}`);
@@ -45,7 +58,7 @@ const FormProvider = <T extends Record<string, unknown>>({
   defaults = [],
   values = [],
 }: FormProviderProps<T>) => {
-  const [state, dispatch] = useReducer(FormReducer, { defaults, values });
+  const [state, dispatch] = useReducer(FormReducer, { defaults, values, dirty: calcDirty(values, defaults) });
   return (
     <FormContext.Provider value={state}>
       <FormDispatchContext.Provider value={dispatch}>

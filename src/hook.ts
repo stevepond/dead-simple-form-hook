@@ -21,30 +21,16 @@ export const useForm = <T extends Record<string, unknown>>() => {
     dispatch({type: 'updateValues', value: newValues});
   };
 
-  const append = () => {
-    const newDefaults = [...defaults];
-    const newValues = [...values];
-    newDefaults.push(
-      Object.keys(defaults[0]).reduce(
-        (agg, k) => ({ ...agg, [k]: "" }),
-        {} as T
-      )
-    );
-    newValues.push(cloneDeep(newDefaults[newDefaults.length - 1]));
+  const append = (value: T) => {
+    const newDefaults = [...defaults, cloneDeep(value)];
+    const newValues = [...values, cloneDeep(value)];
     dispatch({type: 'updateValues', value: newValues});
     dispatch({type: 'updateDefaults', value: newDefaults});
   };
 
-  const prepend = () => {
-    const newDefaults = [...defaults];
-    const newValues = [...values];
-    newDefaults.unshift(
-      Object.keys(defaults[0]).reduce(
-        (agg, k) => ({ ...agg, [k]: "" }),
-        {} as T
-      )
-    );
-    newValues.unshift(cloneDeep(newDefaults[0]));
+  const prepend = (value: T) => {
+    const newDefaults = [cloneDeep(value), ...defaults];
+    const newValues = [cloneDeep(value), ...values];
     dispatch({type: 'updateValues', value: newValues});
     dispatch({type: 'updateDefaults', value: newDefaults});
   };
