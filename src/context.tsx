@@ -1,15 +1,28 @@
-import { isEqual } from "lodash";
+import { cloneDeep, isEqual } from "lodash";
 import React, { createContext, useReducer } from "react";
 
-type Action<T extends Record<string, unknown>> =
-  | { type: "updateDefaults"; value: State<T>["defaults"] }
-  | { type: "updateValues"; value: State<T>["values"] };
+export enum ActionType {
+  RESET,
+  SET,
+  APPEND,
+  PREPEND,
+  REMOVE,
+}
 
-type Dispatch<T extends Record<string, unknown>> = (action: Action<T>) => void;
+export type Action<T extends Record<string, unknown>, Key extends keyof T> =
+  | { type: ActionType.RESET; index: number }
+  | { type: ActionType.SET; index: number; key: Key; value: T[Key] }
+  | { type: ActionType.APPEND; value: T }
+  | { type: ActionType.PREPEND; value: T }
+  | { type: ActionType.REMOVE; index: number };
+
+type Dispatch<T extends Record<string, unknown>> = (
+  action: Action<T, keyof T>
+) => void;
 export type State<T extends Record<string, unknown>> = {
   values: T[];
   defaults: T[];
-  dirty: number[]
+  dirty: number[];
 };
 
 export type FormProviderProps<T extends Record<string, unknown>> = {
@@ -18,38 +31,55 @@ export type FormProviderProps<T extends Record<string, unknown>> = {
   defaults?: State<T>["defaults"];
 };
 
-const calcDirty =<T extends Record<string, unknown>> (s1: T[], s2: T[]) => {
+const calcDirty = <T extends Record<string, unknown>>(s1: T[], s2: T[]) => {
   if (s1.length !== s2.length) {
     return [];
   }
-  return s1.reduce((agg, s1o, i) => !isEqual(s1o, s2[i]) ? [...agg, i] : agg, [] as number[]);
-}
+  return s1.reduce(
+    (agg, s1o, i) => (!isEqual(s1o, s2[i]) ? [...agg, i] : agg),
+    [] as number[]
+  );
+};
 
-
-export const FormContext = createContext<State<Record<string, unknown>>>(
-  {defaults: [], values: [], dirty: []}
-);
+export const FormContext = createContext<State<Record<string, unknown>>>({
+  defaults: [],
+  values: [],
+  dirty: [],
+});
 
 export const FormDispatchContext = createContext<
   Dispatch<Record<string, unknown>> | undefined
 >(undefined);
 
 const FormReducer = <T extends Record<string, unknown>>(
-  state: State<T>,
-  action: Action<T>
+  { dirty, defaults, values }: State<T>,
+  action: Action<T, keyof T>
 ) => {
+  let newDefaults;
+  let newValues;
   switch (action.type) {
-    case "updateDefaults": {
-      const dirty = calcDirty(state.values, action.value);
-      return { ...state, defaults: action.value, dirty };
-    }
-    case "updateValues": {
-      const dirty = calcDirty(state.defaults, action.value);
-      return { ...state, values: action.value, dirty };
-    }
-    default: {
-      throw new Error(`Unhandled action type: ${action}`);
-    }
+    case ActionType.APPEND:
+      newDefaults = [...defaults, cloneDeep(action.value)];
+      newValues = [...values, cloneDeep(action.value)];
+      return { dirty, defaults: newDefaults, values: newValues };
+    case ActionType.PREPEND:
+      newDefaults = [cloneDeep(action.value), ...defaults];
+      newValues = [cloneDeep(action.value), ...values];
+      return { dirty, defaults: newDefaults, values: newValues };
+    case ActionType.REMOVE:
+      newValues = [...values];
+      newDefaults = [...defaults];
+      newValues.splice(action.index, 1);
+      newDefaults.splice(action.index, 1);
+      return { dirty, defaults: newDefaults, values: newValues };
+    case ActionType.RESET:
+      newValues = [...values];
+      newValues[action.index] = cloneDeep(defaults[action.index]);
+      return { dirty, defaults, values: newValues };
+    case ActionType.SET:
+      newValues = [...values];
+      newValues[action.index][action.key] = action.value;
+      return { dirty, defaults, values: newValues };
   }
 };
 
@@ -58,7 +88,11 @@ const FormProvider = <T extends Record<string, unknown>>({
   defaults = [],
   values = [],
 }: FormProviderProps<T>) => {
-  const [state, dispatch] = useReducer(FormReducer, { defaults, values, dirty: calcDirty(values, defaults) });
+  const [state, dispatch] = useReducer(FormReducer, {
+    defaults,
+    values,
+    dirty: calcDirty(values, defaults),
+  });
   return (
     <FormContext.Provider value={state}>
       <FormDispatchContext.Provider value={dispatch}>
