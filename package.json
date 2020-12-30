@@ -1,6 +1,6 @@
 {
   "name": "dead-simple-form-hook",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "peerDependencies": {
     "react": "^17.0.1",
     "react-dom": "^17.0.1"

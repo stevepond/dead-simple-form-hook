@@ -14,6 +14,8 @@ export type Action<T extends Record<string, unknown>, Key extends keyof T> =
   | { type: ActionType.SET; index: number; key: Key; value: T[Key] }
   | { type: ActionType.APPEND; value: T }
   | { type: ActionType.PREPEND; value: T }
+  | { type: "updateDefaults"; value: State<T>["defaults"] }
+  | { type: "updateValues"; value: State<T>["values"] }
   | { type: ActionType.REMOVE; index: number };
 
 type Dispatch<T extends Record<string, unknown>> = (
