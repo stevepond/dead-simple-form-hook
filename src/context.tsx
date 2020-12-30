@@ -82,6 +82,14 @@ const FormReducer = <T extends Record<string, unknown>>(
       newValues = [...values];
       newValues[action.index][action.key] = action.value;
       return { dirty, defaults, values: newValues };
+    case "updateDefaults": {
+      const dirty = calcDirty(values, action.value);
+      return { values, defaults: action.value, dirty };
+    }
+    case "updateValues": {
+      const dirty = calcDirty(defaults, action.value);
+      return { defaults, values: action.value, dirty };
+    }
   }
 };
 
